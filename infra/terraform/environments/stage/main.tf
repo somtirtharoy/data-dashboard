@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket         = "bcgov-data-dashboard-tfstate"
-    key            = "dev/terraform.tfstate"
+    key            = "stage/terraform.tfstate"
     region         = "ca-central-1"
     dynamodb_table = "bcgov-data-dashboard-tflock"
     encrypt        = true
@@ -25,7 +25,7 @@ provider "aws" {
 }
 
 locals {
-  env         = "dev"
+  env         = "stage"
   common_tags = {
     Project     = var.project
     Environment = local.env
@@ -37,11 +37,11 @@ module "vpc" {
   source             = "../../modules/vpc"
   project            = var.project
   environment        = local.env
-  vpc_cidr           = "10.0.0.0/16"
+  vpc_cidr           = "10.1.0.0/16"
   azs                = ["${var.aws_region}a", "${var.aws_region}b"]
-  private_subnets    = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets     = ["10.0.101.0/24", "10.0.102.0/24"]
-  single_nat_gateway = true
+  private_subnets    = ["10.1.1.0/24", "10.1.2.0/24"]
+  public_subnets     = ["10.1.101.0/24", "10.1.102.0/24"]
+  single_nat_gateway = true   # single NAT to save cost; stage doesn't need AZ-level NAT HA
   tags               = local.common_tags
 }
 
@@ -53,7 +53,7 @@ module "eks" {
   private_subnet_ids = module.vpc.private_subnet_ids
   node_instance_type = "t3.medium"
   node_min_size      = 1
-  node_max_size      = 3
+  node_max_size      = 4
   node_desired_size  = 1
   tags               = local.common_tags
 }
@@ -65,10 +65,10 @@ module "rds" {
   vpc_id                     = module.vpc.vpc_id
   subnet_ids                 = module.vpc.private_subnet_ids
   eks_node_security_group_id = module.eks.cluster_name
-  db_instance_class          = "db.t3.micro"
-  allocated_storage          = 20
+  db_instance_class          = "db.t3.small"
+  allocated_storage          = 30
   multi_az                   = false
-  backup_retention_period    = 1
+  backup_retention_period    = 3
   skip_final_snapshot        = true
   deletion_protection        = false
   db_name                    = "dashboard"

@@ -1,0 +1,17 @@
+replicaCount: 2
+
+image:
+  tag: "latest"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  hosts:
+    - host: data-dashboard.example.com
+      paths:
+        - path: /
+          pathType: Prefix

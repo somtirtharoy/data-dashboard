@@ -1,0 +1,17 @@
+replicaCount: 1
+
+image:
+  tag: "stage"
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  hosts:
+    - host: stage.data-dashboard.example.com
+      paths:
+        - path: /
+          pathType: Prefix

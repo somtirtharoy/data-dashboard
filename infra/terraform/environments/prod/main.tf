@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket         = "bcgov-data-dashboard-tfstate"
-    key            = "dev/terraform.tfstate"
+    key            = "prod/terraform.tfstate"
     region         = "ca-central-1"
     dynamodb_table = "bcgov-data-dashboard-tflock"
     encrypt        = true
@@ -25,7 +25,7 @@ provider "aws" {
 }
 
 locals {
-  env         = "dev"
+  env         = "prod"
   common_tags = {
     Project     = var.project
     Environment = local.env
@@ -37,11 +37,11 @@ module "vpc" {
   source             = "../../modules/vpc"
   project            = var.project
   environment        = local.env
-  vpc_cidr           = "10.0.0.0/16"
-  azs                = ["${var.aws_region}a", "${var.aws_region}b"]
-  private_subnets    = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets     = ["10.0.101.0/24", "10.0.102.0/24"]
-  single_nat_gateway = true
+  vpc_cidr           = "10.2.0.0/16"
+  azs                = ["${var.aws_region}a", "${var.aws_region}b", "${var.aws_region}d"]
+  private_subnets    = ["10.2.1.0/24", "10.2.2.0/24", "10.2.3.0/24"]
+  public_subnets     = ["10.2.101.0/24", "10.2.102.0/24", "10.2.103.0/24"]
+  single_nat_gateway = false  # one NAT Gateway per AZ for high availability
   tags               = local.common_tags
 }
 
@@ -51,10 +51,10 @@ module "eks" {
   environment        = local.env
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
-  node_instance_type = "t3.medium"
-  node_min_size      = 1
-  node_max_size      = 3
-  node_desired_size  = 1
+  node_instance_type = "t3.large"
+  node_min_size      = 2
+  node_max_size      = 6
+  node_desired_size  = 2
   tags               = local.common_tags
 }
 
@@ -65,12 +65,12 @@ module "rds" {
   vpc_id                     = module.vpc.vpc_id
   subnet_ids                 = module.vpc.private_subnet_ids
   eks_node_security_group_id = module.eks.cluster_name
-  db_instance_class          = "db.t3.micro"
-  allocated_storage          = 20
-  multi_az                   = false
-  backup_retention_period    = 1
-  skip_final_snapshot        = true
-  deletion_protection        = false
+  db_instance_class          = "db.t3.medium"
+  allocated_storage          = 50
+  multi_az                   = true   # standby replica in a second AZ
+  backup_retention_period    = 7
+  skip_final_snapshot        = false  # keep a snapshot on destroy
+  deletion_protection        = true   # prevents accidental terraform destroy
   db_name                    = "dashboard"
   db_username                = var.db_username
   db_password                = var.db_password

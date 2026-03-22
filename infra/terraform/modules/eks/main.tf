@@ -13,9 +13,9 @@ module "eks" {
 
   eks_managed_node_groups = {
     general = {
-      min_size     = var.environment == "prod" ? 2 : 1
-      max_size     = var.environment == "prod" ? 6 : 3
-      desired_size = var.environment == "prod" ? 2 : 1
+      min_size     = var.node_min_size
+      max_size     = var.node_max_size
+      desired_size = var.node_desired_size
 
       instance_types = [var.node_instance_type]
       capacity_type  = "ON_DEMAND"

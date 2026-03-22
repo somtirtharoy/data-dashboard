@@ -54,17 +54,17 @@ build-lambda:
 
 # ─── Infrastructure ───────────────────────────────────────────────────────────
 
-tf-init-dev:
-	cd infra/terraform/environments/dev && terraform init
+tf-init-%:
+	cd infra/terraform/environments/$* && terraform init
 
-tf-plan-dev:
-	cd infra/terraform/environments/dev && terraform plan
+tf-plan-%:
+	cd infra/terraform/environments/$* && terraform plan -var="db_password=$(DB_PASSWORD)"
 
-tf-apply-dev:
-	cd infra/terraform/environments/dev && terraform apply -auto-approve
+tf-apply-%:
+	cd infra/terraform/environments/$* && terraform apply -var="db_password=$(DB_PASSWORD)"
 
 tf-destroy-dev:
-	cd infra/terraform/environments/dev && terraform destroy
+	cd infra/terraform/environments/dev && terraform destroy -var="db_password=$(DB_PASSWORD)"
 
 # ─── Helm / Kubernetes ────────────────────────────────────────────────────────
 
@@ -72,13 +72,14 @@ helm-lint:
 	helm lint infra/helm/backend
 	helm lint infra/helm/frontend
 
-helm-deploy-dev:
+# helm-deploy-<env>  e.g. make helm-deploy-dev  make helm-deploy-stage  make helm-deploy-prod
+helm-deploy-%:
 	helm upgrade --install backend infra/helm/backend \
 	  --namespace data-dashboard --create-namespace \
-	  -f infra/helm/backend/values-dev.yaml
+	  -f infra/helm/backend/values-$*.yaml
 	helm upgrade --install frontend infra/helm/frontend \
 	  --namespace data-dashboard \
-	  -f infra/helm/frontend/values-dev.yaml
+	  -f infra/helm/frontend/values-$*.yaml
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 
