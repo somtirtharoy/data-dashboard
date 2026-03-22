@@ -1,198 +1,198 @@
-name: Infrastructure CI/CD
+# name: Infrastructure CI/CD
 
-on:
-  push:
-    branches: [main, develop, staging]
-    paths: [infra/terraform/**, .github/workflows/infra.yml]
-  pull_request:
-    paths: [infra/terraform/**]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        type: choice
-        options: [dev, stage, prod]
+# on:
+#   push:
+#     branches: [main, develop, staging]
+#     paths: [infra/terraform/**, .github/workflows/infra.yml]
+#   pull_request:
+#     paths: [infra/terraform/**]
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         description: "Target environment"
+#         required: true
+#         type: choice
+#         options: [dev, stage, prod]
 
-env:
-  TF_VERSION: 1.9.8
+# env:
+#   TF_VERSION: 1.9.8
 
-jobs:
-  # ── Determine which environments need planning ─────────────────────────────
-  setup:
-    name: Determine environments
-    runs-on: ubuntu-latest
-    outputs:
-      envs: ${{ steps.set.outputs.envs }}
-    steps:
-      - id: set
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "envs=[\"${{ inputs.environment }}\"]" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo 'envs=["prod"]' >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
-            echo 'envs=["stage"]' >> "$GITHUB_OUTPUT"
-          else
-            echo 'envs=["dev"]' >> "$GITHUB_OUTPUT"
-          fi
+# jobs:
+#   # ── Determine which environments need planning ─────────────────────────────
+#   setup:
+#     name: Determine environments
+#     runs-on: ubuntu-latest
+#     outputs:
+#       envs: ${{ steps.set.outputs.envs }}
+#     steps:
+#       - id: set
+#         run: |
+#           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+#             echo "envs=[\"${{ inputs.environment }}\"]" >> "$GITHUB_OUTPUT"
+#           elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+#             echo 'envs=["prod"]' >> "$GITHUB_OUTPUT"
+#           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+#             echo 'envs=["stage"]' >> "$GITHUB_OUTPUT"
+#           else
+#             echo 'envs=["dev"]' >> "$GITHUB_OUTPUT"
+#           fi
 
-  # ── Terraform plan (runs for every targeted environment) ──────────────────
-  plan:
-    name: Plan (${{ matrix.env }})
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env: ${{ fromJson(needs.setup.outputs.envs) }}
+#   # ── Terraform plan (runs for every targeted environment) ──────────────────
+#   plan:
+#     name: Plan (${{ matrix.env }})
+#     needs: setup
+#     runs-on: ubuntu-latest
+#     strategy:
+#       matrix:
+#         env: ${{ fromJson(needs.setup.outputs.envs) }}
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ca-central-1
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-        working-directory: infra/terraform
+#       - name: Terraform Format Check
+#         run: terraform fmt -check -recursive
+#         working-directory: infra/terraform
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: infra/terraform/environments/${{ matrix.env }}
+#       - name: Terraform Init
+#         run: terraform init
+#         working-directory: infra/terraform/environments/${{ matrix.env }}
 
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: infra/terraform/environments/${{ matrix.env }}
+#       - name: Terraform Validate
+#         run: terraform validate
+#         working-directory: infra/terraform/environments/${{ matrix.env }}
 
-      - name: Terraform Plan
-        run: |
-          terraform plan \
-            -out=tfplan \
-            -var="db_password=${{ secrets.DB_PASSWORD }}"
-        working-directory: infra/terraform/environments/${{ matrix.env }}
+#       - name: Terraform Plan
+#         run: |
+#           terraform plan \
+#             -out=tfplan \
+#             -var="db_password=${{ secrets.DB_PASSWORD }}"
+#         working-directory: infra/terraform/environments/${{ matrix.env }}
 
-      - name: Upload plan artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan-${{ matrix.env }}
-          path: infra/terraform/environments/${{ matrix.env }}/tfplan
-          retention-days: 1
+#       - name: Upload plan artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: tfplan-${{ matrix.env }}
+#           path: infra/terraform/environments/${{ matrix.env }}/tfplan
+#           retention-days: 1
 
-  # ── Apply dev (automatic on push to develop) ──────────────────────────────
-  apply-dev:
-    name: Apply (dev)
-    needs: plan
-    runs-on: ubuntu-latest
-    if: >
-      github.ref == 'refs/heads/develop' &&
-      github.event_name == 'push'
-    environment: development
+#   # ── Apply dev (automatic on push to develop) ──────────────────────────────
+#   apply-dev:
+#     name: Apply (dev)
+#     needs: plan
+#     runs-on: ubuntu-latest
+#     if: >
+#       github.ref == 'refs/heads/develop' &&
+#       github.event_name == 'push'
+#     environment: development
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ca-central-1
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan-dev
-          path: infra/terraform/environments/dev
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: tfplan-dev
+#           path: infra/terraform/environments/dev
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: infra/terraform/environments/dev
+#       - name: Terraform Init
+#         run: terraform init
+#         working-directory: infra/terraform/environments/dev
 
-      - name: Terraform Apply
-        run: terraform apply tfplan
-        working-directory: infra/terraform/environments/dev
+#       - name: Terraform Apply
+#         run: terraform apply tfplan
+#         working-directory: infra/terraform/environments/dev
 
-  # ── Apply stage (automatic on push to staging branch) ─────────────────────
-  apply-stage:
-    name: Apply (stage)
-    needs: plan
-    runs-on: ubuntu-latest
-    if: >
-      github.ref == 'refs/heads/staging' &&
-      github.event_name == 'push'
-    environment: staging   # optional manual gate — configure in GitHub repo settings
+#   # ── Apply stage (automatic on push to staging branch) ─────────────────────
+#   apply-stage:
+#     name: Apply (stage)
+#     needs: plan
+#     runs-on: ubuntu-latest
+#     if: >
+#       github.ref == 'refs/heads/staging' &&
+#       github.event_name == 'push'
+#     environment: staging   # optional manual gate — configure in GitHub repo settings
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ca-central-1
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan-stage
-          path: infra/terraform/environments/stage
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: tfplan-stage
+#           path: infra/terraform/environments/stage
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: infra/terraform/environments/stage
+#       - name: Terraform Init
+#         run: terraform init
+#         working-directory: infra/terraform/environments/stage
 
-      - name: Terraform Apply
-        run: terraform apply tfplan
-        working-directory: infra/terraform/environments/stage
+#       - name: Terraform Apply
+#         run: terraform apply tfplan
+#         working-directory: infra/terraform/environments/stage
 
-  # ── Apply prod (requires manual approval gate) ────────────────────────────
-  apply-prod:
-    name: Apply (prod)
-    needs: plan
-    runs-on: ubuntu-latest
-    if: >
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
-    environment: production   # requires reviewer approval in GitHub repo settings
+#   # ── Apply prod (requires manual approval gate) ────────────────────────────
+#   apply-prod:
+#     name: Apply (prod)
+#     needs: plan
+#     runs-on: ubuntu-latest
+#     if: >
+#       github.ref == 'refs/heads/main' &&
+#       github.event_name == 'push'
+#     environment: production   # requires reviewer approval in GitHub repo settings
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ca-central-1
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan-prod
-          path: infra/terraform/environments/prod
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: tfplan-prod
+#           path: infra/terraform/environments/prod
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: infra/terraform/environments/prod
+#       - name: Terraform Init
+#         run: terraform init
+#         working-directory: infra/terraform/environments/prod
 
-      - name: Terraform Apply
-        run: terraform apply tfplan
-        working-directory: infra/terraform/environments/prod
+#       - name: Terraform Apply
+#         run: terraform apply tfplan
+#         working-directory: infra/terraform/environments/prod
