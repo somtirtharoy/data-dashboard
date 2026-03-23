@@ -28,7 +28,11 @@ DB_NAME = os.environ["DB_NAME"]
 DB_USER = os.environ["DB_USER"]
 DB_PASSWORD = os.environ["DB_PASSWORD"]
 
-s3_client = boto3.client("s3")
+_s3_kwargs = {}
+if os.environ.get("AWS_ENDPOINT_URL"):
+    _s3_kwargs["endpoint_url"] = os.environ["AWS_ENDPOINT_URL"]
+
+s3_client = boto3.client("s3", **_s3_kwargs)
 
 COLUMN_MAP = {
     "ministry": "ministry",

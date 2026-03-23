@@ -29,7 +29,7 @@ Services:
 - **API docs**: http://localhost:8000/docs
 - **LocalStack** (S3/Lambda sim): http://localhost:4566
 
-### 2. Seed test data (optional)
+### 2. Seed test data (optiona, dont need)
 
 ```bash
 # Connect to the API and POST directly, or create a seed script:
@@ -58,7 +58,6 @@ async def seed():
 asyncio.run(seed())
 "
 ```
-
 ### 3. Simulate an Excel upload (LocalStack)
 
 ```bash
@@ -66,8 +65,33 @@ asyncio.run(seed())
 aws --endpoint-url http://localhost:4566 s3 mb s3://data-dashboard-dev-spend-uploads
 
 # Upload a test file
-aws --endpoint-url http://localhost:4566 s3 cp my_report.xlsx s3://data-dashboard-dev-spend-uploads/
+aws --endpoint-url http://localhost:4566 s3 cp <PATH_TO_FILE>/my_report.xlsx s3://data-dashboard-dev-spend-uploads/
+
+### Check file is uploaded:
+aws --endpoint-url=http://localhost:4566 s3 ls s3://data-dashboard-dev-spend-uploads/
 ```
+
+### 4. Run the lambda script manually: (lambda doesnt work properly on free version of localstack)
+```bash
+AWS_ACCESS_KEY_ID=test \
+AWS_SECRET_ACCESS_KEY=test \
+AWS_DEFAULT_REGION=ca-central-1 \
+AWS_ENDPOINT_URL=http://localhost:4566 \
+DB_HOST=localhost DB_PORT=5432 DB_NAME=dashboard \
+DB_USER=dashboard DB_PASSWORD=dashboard \
+python -c "
+import handler
+event = {'Records': [{'s3': {'bucket': {'name': 'data-dashboard-dev-spend-uploads'}, 'object': {'key': 'uploads/test_spend.xlsx'}}}]}
+print(handler.handler(event, None))”
+```
+### 5. Check in postrgres
+```bash
+docker exec -it $(docker ps -qf "name=db") \
+  psql -U dashboard -d dashboard -c "SELECT * FROM spend_reports LIMIT 10;"
+```
+
+### Check on the dashboard at `http://localhost:3000/`
+
 
 ## Running Tests
 
