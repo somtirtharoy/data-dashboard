@@ -1,0 +1,11 @@
+replicaCount: 1
+image:
+  tag: "dev"
+autoscaling:
+  enabled: false
+ingress:
+  hosts:
+    - host: dev.data-dashboard.example.com
+      paths:
+        - path: /
+          pathType: Prefix

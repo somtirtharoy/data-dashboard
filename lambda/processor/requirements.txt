@@ -1,0 +1,11 @@
+pandas==2.2.3
+openpyxl==3.1.5
+psycopg2-binary==2.9.10
+boto3==1.35.95
+
+# Testing / linting (not bundled in Lambda package)
+pytest==8.3.4
+pytest-cov==6.0.0
+ruff==0.8.4
+mypy==1.13.0
+moto[s3]==5.0.24

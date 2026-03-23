@@ -1,0 +1,7 @@
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: #f5f7fa; color: #1a1a2e; }
+a { color: #003366; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+th { background: #003366; color: #fff; }
+tr:nth-child(even) { background: #f0f4f8; }

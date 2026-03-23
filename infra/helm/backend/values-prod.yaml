@@ -1,0 +1,25 @@
+replicaCount: 2
+
+image:
+  tag: "latest"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  hosts:
+    - host: api.data-dashboard.example.com
+      paths:
+        - path: /
+          pathType: Prefix
